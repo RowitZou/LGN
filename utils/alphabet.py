@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 # @Author: Max
-# @Date:   2018-01-19 11:33:37
-# @Last Modified by:   Jie Yang,     Contact: jieynlp@gmail.com
-# @Last Modified time: 2018-01-19 11:33:56
-
+# @Last Modified by:   Yicheng Zou,     Contact: yczou18@fudan.edu.cn
 
 """
 Alphabet maps objects to integer ids. It provides two way mapping from the index to the objects.
@@ -64,10 +61,10 @@ class Alphabet:
             return self.instances[0]
 
     def size(self):
-        # if self.label:
-        #     return len(self.instances)
-        # else:
-        return len(self.instances) + 1
+        if self.label:
+            return len(self.instances)
+        else:
+            return len(self.instances) + 1
 
     def iteritems(self):
         return self.instance2index.items()
@@ -101,7 +98,7 @@ class Alphabet:
         try:
             json.dump(self.get_content(), open(os.path.join(output_directory, saving_name + ".json"), 'w'))
         except Exception as e:
-            print("Exception: Alphabet is not saved: " % repr(e))
+            print("Exception: Alphabet is not saved: " + repr(e))
 
     def load(self, input_directory, name=None):
         """
