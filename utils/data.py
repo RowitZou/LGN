@@ -129,7 +129,6 @@ class Data:
         else:
             print("Error: you can only generate train/dev/test/raw instance! Illegal input:%s"%(name))
 
-
     def write_decoded_results(self, output_file, predict_results, name):
         fout = open(output_file, 'w', encoding="utf-8")
         sent_num = len(predict_results)

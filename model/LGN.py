@@ -196,9 +196,8 @@ class Graph(nn.Module):
         super(Graph, self).__init__()
 
         self.gpu = args.use_gpu
-        self.word_alphabet = data.word_alphabet
-        self.char_emb_dim = data.char_emb_dim
-        self.word_emb_dim = data.word_emb_dim
+        self.char_emb_dim = args.char_dim
+        self.word_emb_dim = args.word_dim
         self.hidden_dim = args.hidden_dim
         self.num_head = args.num_head  # 5 10 20
         self.head_dim = args.head_dim  # 10 20
@@ -211,19 +210,19 @@ class Graph(nn.Module):
         self.cell_dropout_rate = args.cell_drop_rate
 
         # char embedding
-        self.char_embedding = nn.Embedding(data.char_alphabet.size(), self.char_emb_dim)
+        self.char_embedding = nn.Embedding(args.char_alphabet_size, self.char_emb_dim)
         if data.pretrain_char_embedding is not None:
             self.char_embedding.weight.data.copy_(torch.from_numpy(data.pretrain_char_embedding))
 
         # word embedding
-        self.word_embedding = nn.Embedding(data.word_alphabet.size(), self.word_emb_dim)
+        self.word_embedding = nn.Embedding(args.word_alphabet_size, self.word_emb_dim)
         if data.pretrain_word_embedding is not None:
             scale = np.sqrt(3.0 / self.word_emb_dim)
             data.pretrain_word_embedding[0, :] = np.random.uniform(-scale, scale, [1, self.word_emb_dim])
             self.word_embedding.weight.data.copy_(torch.from_numpy(data.pretrain_word_embedding))
 
         # position embedding
-        #self.pos_embedding = nn.Embedding(data.posi_alphabet_size, self.hidden_dim)
+        # self.pos_embedding = nn.Embedding(data.posi_alphabet_size, self.hidden_dim)
         # lstm
         self.emb_rnn_f = nn.LSTM(self.char_emb_dim, self.hidden_dim, batch_first=True)
         self.emb_rnn_b = nn.LSTM(self.char_emb_dim, self.hidden_dim, batch_first=True)
@@ -282,8 +281,8 @@ class Graph(nn.Module):
         self.glo_rnn_b = GLobal_Cell(self.hidden_dim, self.cell_dropout_rate)
 
         self.layer_att_W = nn.Linear(self.hidden_dim * 2, 1)
-        self.hidden2tag = nn.Linear(self.hidden_dim * 2, data.label_alphabet.size() + 2)
-        self.crf = CRF(data.label_alphabet.size(), self.gpu)
+        self.hidden2tag = nn.Linear(self.hidden_dim * 2, args.label_alphabet_size + 2)
+        self.crf = CRF(args.label_alphabet_size, self.gpu)
 
         if self.gpu:
             self.char_embedding = self.char_embedding.cuda()
@@ -507,7 +506,7 @@ class Graph(nn.Module):
 
     def forward(self, gaz_list, word_inputs, mask, batch_label=None):
         tags, _ = self.get_tags(gaz_list, word_inputs, mask)
-        if not batch_label is None:
+        if batch_label is not None:
             total_loss = self.crf.neg_log_likelihood_loss(tags, mask, batch_label)
         else:
             total_loss = None

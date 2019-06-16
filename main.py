@@ -6,7 +6,6 @@ import time
 import sys
 import argparse
 import random
-import copy
 import torch
 import gc
 import pickle
@@ -65,6 +64,7 @@ def recover_label(pred_variable, gold_variable, mask_variable, label_alphabet):
 
     return pred_label, gold_label
 
+
 def evaluate(data, args, model, name):
     if name == "train":
         instances = data.train_Ids
@@ -75,13 +75,13 @@ def evaluate(data, args, model, name):
     elif name == 'raw':
         instances = data.raw_Ids
     else:
-        print( "Error: wrong evaluate name,", name)
+        print("Error: wrong evaluate name,", name)
         exit(0)
 
     pred_results = []
     gold_results = []
 
-    ## set model in eval model
+    # set model in eval model
     model.eval()
     batch_size = args.batch_size
     start_time = time.time()
@@ -91,13 +91,13 @@ def evaluate(data, args, model, name):
     for batch_id in range(total_batch):
         start = batch_id*batch_size
         end = (batch_id+1)*batch_size
-        if end >train_num:
-            end =  train_num
+        if end > train_num:
+            end = train_num
         instance = instances[start:end]
         if not instance:
             continue
 
-        word_list, batch_char, batch_label, mask  = batchify_with_label(instance, args.use_gpu)
+        word_list, batch_char, batch_label, mask = batchify_with_label(instance, args.use_gpu)
         _, tag_seq = model(word_list, batch_char, mask)
 
         pred_label, gold_label = recover_label(tag_seq, batch_label, mask, data.label_alphabet)
@@ -136,6 +136,7 @@ def batchify_with_label(input_batch_list, gpu):
         mask = mask.cuda()
 
     return words, char_seq_tensor, label_seq_tensor, mask
+
 
 def train(data, args, saved_model_path):
 
@@ -216,7 +217,7 @@ def train(data, args, saved_model_path):
         print(("Epoch: %s training finished. Time: %.2fs, speed: %.2fst/s,  total loss: %s" %
                (idx, epoch_cost, train_num/epoch_cost, total_loss)))
 
-        ## dev
+        # dev
         speed, acc, dev_p, dev_r, dev_f, _ = evaluate(data, args, model, "dev")
         dev_finish = time.time()
         dev_cost = dev_finish - epoch_finish
@@ -224,7 +225,7 @@ def train(data, args, saved_model_path):
         print(("Dev: time: %.2fs, speed: %.2fst/s; acc: %.4f, p: %.4f, r: %.4f, f: %.4f" %
                (dev_cost, speed, acc, dev_p, dev_r, dev_f)))
 
-        ## test
+        # test
         speed, acc, test_p, test_r, test_f, _ = evaluate(data, args, model, "test")
         test_finish = time.time()
         test_cost = test_finish - dev_finish
@@ -234,8 +235,7 @@ def train(data, args, saved_model_path):
 
         if dev_f > best_dev_f:
             print("Exceed previous best f score: %.4f" % best_dev_f)
-
-            torch.save(model.state_dict(), saved_model_path)
+            torch.save(model.state_dict(), saved_model_path + "_best")
             best_dev_p = dev_p
             best_dev_r = dev_r
             best_dev_f = dev_f
@@ -244,28 +244,42 @@ def train(data, args, saved_model_path):
             best_test_r = test_r
             best_test_f = test_f
 
+        model_idx_path = saved_model_path + "_" + str(idx)
+        torch.save(model.state_dict(), model_idx_path)
+        with open(saved_model_path + "_result.txt", "a") as file:
+            file.write(model_idx_path + '\n')
+            file.write("Dev score: %.4f, r: %.4f, f: %.4f\n" % (dev_p, dev_r, dev_f))
+            file.write("Test score: %.4f, r: %.4f, f: %.4f\n\n" % (test_p, test_r, test_f))
+            file.close()
+
         print("Best dev epoch: %d" % best_dev_epoch)
         print("Best dev score: p: %.4f, r: %.4f, f: %.4f" % (best_dev_p, best_dev_r, best_dev_f))
         print("Best test score: p: %.4f, r: %.4f, f: %.4f" % (best_test_p, best_test_r, best_test_f))
 
         gc.collect()
 
-    with open(saved_model_path + "_result.txt" , "a") as f:
-        f.write(saved_model_path + '\n')
-        f.write("Best dev score: %.4f, r: %.4f, f: %.4f\n" % (best_dev_p, best_dev_r, best_dev_f))
-        f.write("Test score: %.4f, r: %.4f, f: %.4f\n" % (best_test_p, best_test_r, best_test_f))
-        f.close()
+    with open(saved_model_path + "_result.txt", "a") as file:
+        file.write("Best epoch: %d" % best_dev_epoch + '\n')
+        file.write("Best Dev score: %.4f, r: %.4f, f: %.4f\n" % (best_dev_p, best_dev_r, best_dev_f))
+        file.write("Test score: %.4f, r: %.4f, f: %.4f\n\n" % (best_test_p, best_test_r, best_test_f))
+        file.close()
+
+    with open(saved_model_path + "_best_HP.config", "wb") as file:
+        pickle.dump(args, file)
+
 
 def load_model_decode(model_dir, data, args, name):
-    print( "Load Model from file: ", model_dir)
+    model_dir = model_dir + "_best"
+    print("Load Model from file: ", model_dir)
     model = Graph(data, args)
-    ## load model need consider if the model trained in GPU and load in CPU, or vice versa
+
+    # load model need consider if the model trained in GPU and load in CPU, or vice versa
     if not args.use_gpu:
         model.load_state_dict(torch.load(model_dir, map_location=lambda storage, loc: storage))
     else:
         model.load_state_dict(torch.load(model_dir))
 
-    print(("Decode %s data ..."%(name)))
+    print(("Decode %s data ..." % name))
     start_time = time.time()
     speed, acc, p, r, f, pred_results = evaluate(data, args, model, name)
     end_time = time.time()
@@ -286,7 +300,7 @@ if __name__ == '__main__':
     parser.add_argument('--raw', help='Raw file for decoding.')
     parser.add_argument('--output', help='Output results for decoding.')
     parser.add_argument('--saved_set', help='Path of saved data set.')
-    parser.add_argument('--saved_model', help='Path of saved model.', default="saved_model/model_best")
+    parser.add_argument('--saved_model', help='Path of saved model.', default="saved_model/model")
     parser.add_argument('--char_emb', help='Path of character embedding file.', default="data/gigaword_chn.all.a2b.uni.ite50.vec")
     parser.add_argument('--word_emb', help='Path of word embedding file.', default="data/ctb.50d.vec")
 
@@ -300,6 +314,11 @@ if __name__ == '__main__':
     parser.add_argument('--tf_drop_rate', default=0.1, type=float, help='Transformer dropout rate.')
     parser.add_argument('--emb_drop_rate', default=0.5, type=float, help='Embedding dropout rate.')
     parser.add_argument('--cell_drop_rate', default=0.2, type=float, help='Aggregation module dropout rate.')
+    parser.add_argument('--word_alphabet_size', type=int, help='Word alphabet size.')
+    parser.add_argument('--char_alphabet_size', type=int, help='Char alphabet size.')
+    parser.add_argument('--label_alphabet_size', type=int, help='Label alphabet size.')
+    parser.add_argument('--char_dim', type=int, help='Char embedding size.')
+    parser.add_argument('--word_dim', type=int, help='Word embedding size.')
     parser.add_argument('--lr', type=float, default=5e-04)
     parser.add_argument('--weight_decay', type=float, default=1e-08)
 
@@ -321,8 +340,6 @@ if __name__ == '__main__':
     char_file = args.char_emb
     word_file = args.word_emb
 
-    assert saved_set_path is not None
-
     if status == 'train':
         assert not (train_file is None or dev_file is None or test_file is None)
         if os.path.exists(saved_set_path):
@@ -337,13 +354,20 @@ if __name__ == '__main__':
             data.generate_instance_with_words(test_file, 'test')
             data.build_char_pretrain_emb(char_file)
             data.build_word_pretrain_emb(word_file)
-            print('Dumping data...')
-            with open(saved_set_path, 'wb') as f:
-                pickle.dump(data, f)
+            if saved_set_path is not None:
+                print('Dumping data...')
+                with open(saved_set_path, 'wb') as f:
+                    pickle.dump(data, f)
         data.show_data_summary()
+        args.word_alphabet_size = data.word_alphabet.size()
+        args.char_alphabet_size = data.char_alphabet.size()
+        args.label_alphabet_size = data.label_alphabet.size()
+        args.char_dim = data.char_emb_dim
+        args.word_dim = data.word_emb_dim
         train(data, args, saved_model_path)
 
     elif status == 'test':
+        assert not (test_file is None)
         if os.path.exists(saved_set_path):
             print('Loading saved data set...')
             with open(saved_set_path, 'rb') as f:
@@ -352,6 +376,8 @@ if __name__ == '__main__':
             print("Cannot find saved data set: ", saved_set_path)
             exit(0)
         data.generate_instance_with_words(test_file, 'test')
+        with open(saved_model_path + "_best_HP.config", "rb") as f:
+            args = pickle.load(f)
         load_model_decode(saved_model_path, data, args, "test")
 
     elif status == 'decode':
@@ -364,7 +390,9 @@ if __name__ == '__main__':
             print("Cannot find saved data set: ", saved_set_path)
             exit(0)
         data.generate_instance_with_words(raw_file, 'raw')
+        with open(saved_model_path + "_best_HP.config", "rb") as f:
+            args = pickle.load(f)
         decode_results = load_model_decode(saved_model_path, data, args, "raw")
         data.write_decoded_results(output_file, decode_results, 'raw')
     else:
-        print( "Invalid argument! Please use valid arguments! (train/test/decode)")
+        print("Invalid argument! Please use valid arguments! (train/test/decode)")
