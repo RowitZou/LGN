@@ -3,7 +3,6 @@
 # @Last Modified by:   Yicheng Zou,     Contact: yczou18@fudan.edu.cn
 
 import sys
-import re
 from utils.alphabet import Alphabet
 from utils.functions import *
 from utils.word_trie import Word_Trie
