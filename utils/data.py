@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-# @Author: Jie
+# @Author: Jie Yang
 # @Last Modified by:   Yicheng Zou,     Contact: yczou18@fudan.edu.cn
 
 import sys
 from utils.alphabet import Alphabet
 from utils.functions import *
 from utils.word_trie import Word_Trie
+
 
 class Data:
     def __init__(self): 
@@ -75,7 +76,7 @@ class Data:
         self.char_alphabet.close()
 
     def build_word_file(self, word_file):
-        ## build word file,initial word embedding file
+        # build word file,initial word embedding file
         with open(word_file, 'r', encoding="utf-8") as f:
             for line in f:
                 word = line.strip().split()[0]
@@ -146,7 +147,7 @@ class Data:
         for idx in range(sent_num):
             sent_length = len(predict_results[idx])
             for idy in range(sent_length):
-                ## content_list[idx] is a list with [word, char, label]
+                # content_list[idx] is a list with [word, char, label]
                 fout.write(content_list[idx][0][idy] + " " + predict_results[idx][idy] + '\n')
             fout.write('\n')
         fout.close()

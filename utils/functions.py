@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Author: Jie
+# @Author: Jie Yang
 # @Last Modified by:   Yicheng Zou,     Contact: yczou18@fudan.edu.cn
 
 import numpy as np
 import re
+
 
 def read_instance_with_gaz(input_file, word_dict, char_alphabet, word_alphabet, label_alphabet, number_normalized, max_sent_length):
     instence_texts = []
@@ -54,6 +55,7 @@ def read_instance_with_gaz(input_file, word_dict, char_alphabet, word_alphabet, 
 
     return instence_texts, instence_Ids
 
+
 def build_pretrain_embedding(embedding_path, word_alphabet, embedd_dim=50, norm=True):
 
     def norm2one(vec):
@@ -85,6 +87,7 @@ def build_pretrain_embedding(embedding_path, word_alphabet, embedd_dim=50, norm=
     print("Embedding:\n     pretrain word:%s, match:%s, oov:%s, oov%%:%.4f" %
           (pretrained_size, word_alphabet.size() - not_match, not_match, (not_match+0.)/word_alphabet.size()))
     return pretrain_emb, embedd_dim
+
 
 def load_pretrain_emb(embedding_path):
     embedd_dict = dict()

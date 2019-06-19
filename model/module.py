@@ -106,19 +106,15 @@ class GloAtt(nn.Module):
 
 
 class Nodes_Cell(nn.Module):
-    def __init__(self, hid_h, use_global=True, dropout=0.2):
+    def __init__(self, input_h, hid_h, use_global=True, dropout=0.2):
         super(Nodes_Cell, self).__init__()
 
         self.use_global = use_global
-        if self.use_global:
-            input_size = hid_h * 5
-        else:
-            input_size = hid_h * 3
 
-        self.Wix = nn.Linear(input_size, hid_h)
-        self.Wi2 = nn.Linear(input_size, hid_h)
-        self.Wf = nn.Linear(input_size, hid_h)
-        self.Wcx = nn.Linear(input_size, hid_h)
+        self.Wix = nn.Linear(input_h, hid_h)
+        self.Wi2 = nn.Linear(input_h, hid_h)
+        self.Wf = nn.Linear(input_h, hid_h)
+        self.Wcx = nn.Linear(input_h, hid_h)
 
         self.drop = nn.Dropout(dropout)
 
@@ -144,18 +140,14 @@ class Nodes_Cell(nn.Module):
 
 
 class Edges_Cell(nn.Module):
-    def __init__(self, hid_h, use_global=True, dropout=0.2):
+    def __init__(self, input_h, hid_h, use_global=True, dropout=0.2):
         super(Edges_Cell, self).__init__()
 
         self.use_global = use_global
-        if self.use_global:
-            input_size = hid_h * 4
-        else:
-            input_size = hid_h * 2
 
-        self.Wi = nn.Linear(input_size, hid_h)
-        self.Wf = nn.Linear(input_size, hid_h)
-        self.Wc = nn.Linear(input_size, hid_h)
+        self.Wi = nn.Linear(input_h, hid_h)
+        self.Wf = nn.Linear(input_h, hid_h)
+        self.Wc = nn.Linear(input_h, hid_h)
 
         self.drop = nn.Dropout(dropout)
 
@@ -179,13 +171,13 @@ class Edges_Cell(nn.Module):
         return output
 
 
-class GLobal_Cell(nn.Module):
-    def __init__(self, hid_h, dropout=0.2):
-        super(GLobal_Cell, self).__init__()
+class Global_Cell(nn.Module):
+    def __init__(self, input_h, hid_h, dropout=0.2):
+        super(Global_Cell, self).__init__()
 
-        self.Wi = nn.Linear(hid_h*3, hid_h)
-        self.Wf = nn.Linear(hid_h*3, hid_h)
-        self.Wc = nn.Linear(hid_h*3, hid_h)
+        self.Wi = nn.Linear(input_h, hid_h)
+        self.Wf = nn.Linear(input_h, hid_h)
+        self.Wc = nn.Linear(input_h, hid_h)
 
         self.drop = nn.Dropout(dropout)
 

@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 # @Author: Jie Yang
-# @Date:   2017-12-04 23:19:38
 # @Last Modified by:   Yicheng Zou,     Contact: yczou18@fudan.edu.cn
-# @Last Modified time: 2018-12-13 22:48:17
 
 import torch
 import torch.autograd as autograd
@@ -24,6 +22,7 @@ def log_sum_exp(vec, m_size):
     _, idx = torch.max(vec, 1)  # B * 1 * M
     max_score = torch.gather(vec, 1, idx.view(-1, 1, m_size)).view(-1, 1, m_size)  # B * M
     return max_score.view(-1, m_size) + torch.log(torch.sum(torch.exp(vec - max_score.expand_as(vec)), 1)).view(-1, m_size)  # B * M
+
 
 class CRF(nn.Module):
 

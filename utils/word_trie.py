@@ -4,6 +4,7 @@
 
 _end = "_end_"
 
+
 class Word_Trie:
     def __init__(self):
         self.root = dict()

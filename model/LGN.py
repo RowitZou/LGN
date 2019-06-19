@@ -5,6 +5,7 @@
 from model.crf import CRF
 from model.module import *
 
+
 class Graph(nn.Module):
     def __init__(self, data, args):
         super(Graph, self).__init__()
@@ -24,6 +25,7 @@ class Graph(nn.Module):
         self.cell_dropout_rate = args.cell_drop_rate
         self.use_crf = args.use_crf
         self.use_global = args.use_global
+        self.use_edge = args.use_edge
         self.bidirectional = args.bidirectional
         self.label_size = args.label_alphabet_size
 
@@ -32,23 +34,26 @@ class Graph(nn.Module):
         if data.pretrain_char_embedding is not None:
             self.char_embedding.weight.data.copy_(torch.from_numpy(data.pretrain_char_embedding))
 
-        # word embedding
-        self.word_embedding = nn.Embedding(args.word_alphabet_size, self.word_emb_dim)
-        if data.pretrain_word_embedding is not None:
-            scale = np.sqrt(3.0 / self.word_emb_dim)
-            data.pretrain_word_embedding[0, :] = np.random.uniform(-scale, scale, [1, self.word_emb_dim])
-            self.word_embedding.weight.data.copy_(torch.from_numpy(data.pretrain_word_embedding))
+        if self.use_edge:
+
+            # word embedding
+            self.word_embedding = nn.Embedding(args.word_alphabet_size, self.word_emb_dim)
+            if data.pretrain_word_embedding is not None:
+                scale = np.sqrt(3.0 / self.word_emb_dim)
+                data.pretrain_word_embedding[0, :] = np.random.uniform(-scale, scale, [1, self.word_emb_dim])
+                self.word_embedding.weight.data.copy_(torch.from_numpy(data.pretrain_word_embedding))
+
+            # bmes embedding
+            self.bmes_embedding = nn.Embedding(4, self.bmes_dim)
+
+            self.edge_emb_linear = nn.Sequential(
+                nn.Linear(self.word_emb_dim, self.hidden_dim),
+                nn.ELU()
+            )
 
         # lstm
         self.emb_rnn_f = nn.LSTM(self.char_emb_dim, self.hidden_dim, batch_first=True)
         self.emb_rnn_b = nn.LSTM(self.char_emb_dim, self.hidden_dim, batch_first=True)
-        self.edge_emb_linear = nn.Sequential(
-            nn.Linear(self.word_emb_dim, self.hidden_dim),
-            nn.ELU()
-        )
-
-        # bmes embedding
-        self.bmes_embedding = nn.Embedding(4, self.bmes_dim)
 
         # length embedding
         self.length_embedding = nn.Embedding(self.max_word_length, self.length_dim)
@@ -56,55 +61,87 @@ class Graph(nn.Module):
         self.dropout = nn.Dropout(self.emb_dropout_rate)
         self.norm = nn.LayerNorm(self.hidden_dim)
 
-        self.edge2node_f = nn.ModuleList(
-            [MultiHeadAtt(self.hidden_dim, self.hidden_dim*2+self.length_dim,
-                          nhead=self.num_head, head_dim=self.head_dim, dropout=self.tf_dropout_rate)
-             for _ in range(self.iters)])
-        self.node2edge_f = nn.ModuleList(
-            [MultiHeadAtt(self.hidden_dim, self.hidden_dim+self.bmes_dim, nhead=self.num_head, head_dim=self.head_dim, dropout=self.tf_dropout_rate)
-             for _ in range(self.iters)])
+        if self.use_edge:
+            # Node aggregation module
+            self.edge2node_f = nn.ModuleList(
+                [MultiHeadAtt(self.hidden_dim, self.hidden_dim * 2 + self.length_dim,
+                              nhead=self.num_head, head_dim=self.head_dim, dropout=self.tf_dropout_rate)
+                 for _ in range(self.iters)])
+            # Edge aggregation module
+            self.node2edge_f = nn.ModuleList(
+                [MultiHeadAtt(self.hidden_dim, self.hidden_dim + self.bmes_dim, nhead=self.num_head,
+                              head_dim=self.head_dim, dropout=self.tf_dropout_rate)
+                 for _ in range(self.iters)])
+
+        else:
+            # Node aggregation module
+            self.edge2node_f = nn.ModuleList(
+                [MultiHeadAtt(self.hidden_dim, self.hidden_dim + self.length_dim,
+                              nhead=self.num_head, head_dim=self.head_dim, dropout=self.tf_dropout_rate)
+                 for _ in range(self.iters)])
 
         if self.use_global:
+            # Global Node aggregation module
             self.glo_att_f_node = nn.ModuleList(
                 [GloAtt(self.hidden_dim, nhead=self.num_head, head_dim=self.head_dim, dropout=self.tf_dropout_rate)
                  for _ in range(self.iters)])
 
-            self.glo_att_f_edge = nn.ModuleList(
-                [GloAtt(self.hidden_dim, nhead=self.num_head, head_dim=self.head_dim, dropout=self.tf_dropout_rate)
-                 for _ in range(self.iters)])
-            self.glo_rnn_f = GLobal_Cell(self.hidden_dim, dropout=self.cell_dropout_rate)
-            self.edge_rnn_f = Edges_Cell(self.hidden_dim, dropout=self.cell_dropout_rate)
-            self.node_rnn_f = Nodes_Cell(self.hidden_dim, dropout=self.cell_dropout_rate)
+            # Updating modules
+            if self.use_edge:
+                self.glo_rnn_f = Global_Cell(self.hidden_dim * 3, self.hidden_dim, dropout=self.cell_dropout_rate)
+                self.node_rnn_f = Nodes_Cell(self.hidden_dim * 5, self.hidden_dim, dropout=self.cell_dropout_rate)
+                self.edge_rnn_f = Edges_Cell(self.hidden_dim * 4, self.hidden_dim, dropout=self.cell_dropout_rate)
+            else:
+                self.glo_rnn_f = Global_Cell(self.hidden_dim * 2, self.hidden_dim, dropout=self.cell_dropout_rate)
+                self.node_rnn_f = Nodes_Cell(self.hidden_dim * 4, self.hidden_dim, dropout=self.cell_dropout_rate)
 
         else:
-            self.edge_rnn_f = Edges_Cell(self.hidden_dim, use_global=False, dropout=self.cell_dropout_rate)
-            self.node_rnn_f = Nodes_Cell(self.hidden_dim, use_global=False, dropout=self.cell_dropout_rate)
+            # Updating modules
+            self.node_rnn_f = Nodes_Cell(self.hidden_dim * 3, self.hidden_dim, use_global=False, dropout=self.cell_dropout_rate)
+            if self.use_edge:
+                self.edge_rnn_f = Edges_Cell(self.hidden_dim * 2, self.hidden_dim, use_global=False, dropout=self.cell_dropout_rate)
 
         if self.bidirectional:
-            self.edge2node_b = nn.ModuleList(
-                [MultiHeadAtt(self.hidden_dim, self.hidden_dim*2+self.length_dim,
-                              nhead=self.num_head, head_dim=self.head_dim, dropout=self.tf_dropout_rate)
-                 for _ in range(self.iters)])
-            self.node2edge_b = nn.ModuleList(
-                [MultiHeadAtt(self.hidden_dim, self.hidden_dim+self.bmes_dim, nhead=self.num_head, head_dim=self.head_dim, dropout=self.tf_dropout_rate)
-                 for _ in range(self.iters)])
+
+            if self.use_edge:
+                # Node aggregation module
+                self.edge2node_b = nn.ModuleList(
+                    [MultiHeadAtt(self.hidden_dim, self.hidden_dim * 2 + self.length_dim,
+                                  nhead=self.num_head, head_dim=self.head_dim, dropout=self.tf_dropout_rate)
+                     for _ in range(self.iters)])
+                # Edge aggregation module
+                self.node2edge_b = nn.ModuleList(
+                    [MultiHeadAtt(self.hidden_dim, self.hidden_dim + self.bmes_dim, nhead=self.num_head,
+                                  head_dim=self.head_dim, dropout=self.tf_dropout_rate)
+                     for _ in range(self.iters)])
+
+            else:
+                # Node aggregation module
+                self.edge2node_b = nn.ModuleList(
+                    [MultiHeadAtt(self.hidden_dim, self.hidden_dim + self.length_dim,
+                                  nhead=self.num_head, head_dim=self.head_dim, dropout=self.tf_dropout_rate)
+                     for _ in range(self.iters)])
 
             if self.use_global:
+                # Global Node aggregation module
                 self.glo_att_b_node = nn.ModuleList(
                     [GloAtt(self.hidden_dim, nhead=self.num_head, head_dim=self.head_dim, dropout=self.tf_dropout_rate)
                      for _ in range(self.iters)])
 
-                self.glo_att_b_edge = nn.ModuleList(
-                    [GloAtt(self.hidden_dim, nhead=self.num_head, head_dim=self.head_dim, dropout=self.tf_dropout_rate)
-                     for _ in range(self.iters)])
-
-                self.glo_rnn_b = GLobal_Cell(self.hidden_dim, self.cell_dropout_rate)
-                self.edge_rnn_b = Edges_Cell(self.hidden_dim, self.cell_dropout_rate)
-                self.node_rnn_b = Nodes_Cell(self.hidden_dim, self.cell_dropout_rate)
+                # Updating modules
+                if self.use_edge:
+                    self.glo_rnn_b = Global_Cell(self.hidden_dim * 3, self.hidden_dim, self.cell_dropout_rate)
+                    self.node_rnn_b = Nodes_Cell(self.hidden_dim * 5, self.hidden_dim, self.cell_dropout_rate)
+                    self.edge_rnn_b = Edges_Cell(self.hidden_dim * 4, self.hidden_dim, self.cell_dropout_rate)
+                else:
+                    self.glo_rnn_b = Global_Cell(self.hidden_dim * 2, self.hidden_dim, self.cell_dropout_rate)
+                    self.node_rnn_b = Nodes_Cell(self.hidden_dim * 4, self.hidden_dim, self.cell_dropout_rate)
 
             else:
-                self.edge_rnn_b = Edges_Cell(self.hidden_dim, use_global=False, dropout=self.cell_dropout_rate)
-                self.node_rnn_b = Nodes_Cell(self.hidden_dim, use_global=False, dropout=self.cell_dropout_rate)
+                # Updating modules
+                self.node_rnn_b = Nodes_Cell(self.hidden_dim * 3, self.hidden_dim, use_global=False, dropout=self.cell_dropout_rate)
+                if self.use_edge:
+                    self.edge_rnn_b = Edges_Cell(self.hidden_dim * 2, self.hidden_dim, use_global=False, dropout=self.cell_dropout_rate)
 
         if self.bidirectional:
             output_dim = self.hidden_dim * 2
@@ -124,41 +161,41 @@ class Graph(nn.Module):
 
         assert batch_size == 1
 
-        unk_index = torch.tensor(0).cuda() if self.cuda else torch.tensor(0)
-        unk_emb = self.word_embedding(unk_index)
+        if self.use_edge:
+            unk_index = torch.tensor(0).cuda() if self.cuda else torch.tensor(0)
+            unk_emb = self.word_embedding(unk_index)
 
-        bmes_index_b = torch.tensor(0).cuda() if self.cuda else torch.tensor(0)
-        bmes_index_m = torch.tensor(1).cuda() if self.cuda else torch.tensor(1)
-        bmes_index_e = torch.tensor(2).cuda() if self.cuda else torch.tensor(2)
-        bmes_index_s = torch.tensor(3).cuda() if self.cuda else torch.tensor(3)
+            bmes_index_b = torch.tensor(0).cuda() if self.cuda else torch.tensor(0)
+            bmes_index_m = torch.tensor(1).cuda() if self.cuda else torch.tensor(1)
+            bmes_index_e = torch.tensor(2).cuda() if self.cuda else torch.tensor(2)
+            bmes_index_s = torch.tensor(3).cuda() if self.cuda else torch.tensor(3)
 
-        bmes_emb_b = self.bmes_embedding(bmes_index_b)
-        bmes_emb_m = self.bmes_embedding(bmes_index_m)
-        bmes_emb_e = self.bmes_embedding(bmes_index_e)
-        bmes_emb_s = self.bmes_embedding(bmes_index_s)
+            bmes_emb_b = self.bmes_embedding(bmes_index_b)
+            bmes_emb_m = self.bmes_embedding(bmes_index_m)
+            bmes_emb_e = self.bmes_embedding(bmes_index_e)
+            bmes_emb_s = self.bmes_embedding(bmes_index_s)
 
         for sen in range(batch_size):
-            sen_word_embed = unk_emb[None, :]
             sen_nodes_mask = torch.zeros([1, seq_len]).byte()
             sen_words_length = torch.zeros([1, self.length_dim])
-            sen_bmes_embed = torch.zeros([1, seq_len, self.bmes_dim])
             sen_words_mask_f = torch.zeros([1, seq_len]).byte()
             sen_words_mask_b = torch.zeros([1, seq_len]).byte()
-            if self.cuda:
-                sen_word_embed = sen_word_embed.cuda()
+            if self.gpu:
                 sen_nodes_mask = sen_nodes_mask.cuda()
                 sen_words_length = sen_words_length.cuda()
-                sen_bmes_embed = sen_bmes_embed.cuda()
                 sen_words_mask_f = sen_words_mask_f.cuda()
                 sen_words_mask_b = sen_words_mask_b.cuda()
+
+            if self.use_edge:
+                sen_word_embed = unk_emb[None, :]
+                sen_bmes_embed = torch.zeros([1, seq_len, self.bmes_dim])
+                if self.gpu:
+                    sen_word_embed = sen_word_embed.cuda()
+                    sen_bmes_embed = sen_bmes_embed.cuda()
 
             for w in range(seq_len):
                 if w < len(word_list[sen]) and word_list[sen][w]:
                     for word, word_len in zip(word_list[sen][w][0], word_list[sen][w][1]):
-
-                        word_index = torch.tensor(word, device=sen_word_embed.device)
-                        word_embedding = self.word_embedding(word_index)
-                        sen_word_embed = torch.cat([sen_word_embed, word_embedding[None, :]], 0)
 
                         if word_len <= self.max_word_length:
                             word_length_index = torch.tensor(word_len-1, device=sen_words_length.device)
@@ -167,16 +204,16 @@ class Graph(nn.Module):
                         word_length = self.length_embedding(word_length_index)
                         sen_words_length = torch.cat([sen_words_length, word_length[None, :]], 0)
 
-                        # mask: 需要mask的地方置为1, batch_size * word_num * seq_len
+                        # mask: Masked elements are marked by 1, batch_size * word_num * seq_len
                         nodes_mask = torch.ones([1, seq_len]).byte()
-                        bmes_embed = torch.zeros([1, seq_len, self.bmes_dim])
                         words_mask_f = torch.ones([1, seq_len]).byte()
                         words_mask_b = torch.ones([1, seq_len]).byte()
-                        if self.cuda:
+                        if self.gpu:
                             nodes_mask = nodes_mask.cuda()
-                            bmes_embed = bmes_embed.cuda()
                             words_mask_f = words_mask_f.cuda()
                             words_mask_b = words_mask_b.cuda()
+
+                        sen_nodes_mask = torch.cat([sen_nodes_mask, nodes_mask], 0)
 
                         words_mask_f[0, w + word_len - 1] = 0
                         sen_words_mask_f = torch.cat([sen_words_mask_f, words_mask_f], 0)
@@ -184,64 +221,94 @@ class Graph(nn.Module):
                         words_mask_b[0, w] = 0
                         sen_words_mask_b = torch.cat([sen_words_mask_b, words_mask_b], 0)
 
-                        for index in range(word_len):
-                            nodes_mask[0, w + index] = 0
-                            if word_len == 1:
-                                bmes_embed[0, w + index, :] = bmes_emb_s
-                            elif index == 0:
-                                bmes_embed[0, w + index, :] = bmes_emb_b
-                            elif index == word_len - 1:
-                                bmes_embed[0, w + index, :] = bmes_emb_e
-                            else:
-                                bmes_embed[0, w + index, :] = bmes_emb_m
+                        if self.use_edge:
+                            word_index = torch.tensor(word, device=sen_word_embed.device)
+                            word_embedding = self.word_embedding(word_index)
+                            sen_word_embed = torch.cat([sen_word_embed, word_embedding[None, :]], 0)
 
-                        sen_nodes_mask = torch.cat([sen_nodes_mask, nodes_mask], 0)
-                        sen_bmes_embed = torch.cat([sen_bmes_embed, bmes_embed], 0)
+                            bmes_embed = torch.zeros([1, seq_len, self.bmes_dim])
+                            if self.gpu:
+                                bmes_embed = bmes_embed.cuda()
 
-        batch_word_embed = sen_word_embed.unsqueeze(0)  # Only works when batch size is 1
+                            for index in range(word_len):
+                                nodes_mask[0, w + index] = 0
+                                if word_len == 1:
+                                    bmes_embed[0, w + index, :] = bmes_emb_s
+                                elif index == 0:
+                                    bmes_embed[0, w + index, :] = bmes_emb_b
+                                elif index == word_len - 1:
+                                    bmes_embed[0, w + index, :] = bmes_emb_e
+                                else:
+                                    bmes_embed[0, w + index, :] = bmes_emb_m
+
+                            sen_bmes_embed = torch.cat([sen_bmes_embed, bmes_embed], 0)
+
         batch_nodes_mask = sen_nodes_mask.unsqueeze(0)
-        batch_bmes_embed = sen_bmes_embed.unsqueeze(0)
         batch_words_mask_f = sen_words_mask_f.unsqueeze(0)
         batch_words_mask_b = sen_words_mask_b.unsqueeze(0)
         batch_words_length = sen_words_length.unsqueeze(0)
+        if self.use_edge:
+            batch_word_embed = sen_word_embed.unsqueeze(0)  # Only works when batch size is 1
+            batch_bmes_embed = sen_bmes_embed.unsqueeze(0)
+        else:
+            batch_word_embed = None
+            batch_bmes_embed = None
+
         return batch_word_embed, batch_bmes_embed, batch_nodes_mask, batch_words_mask_f, batch_words_mask_b, batch_words_length
 
-    def get_tags(self, word_list, word_inputs):
+    def update_graph(self, word_list, word_inputs):
 
         node_embeds = self.char_embedding(word_inputs)  # batch_size, max_seq_len, embedding
         B, L, _ = node_embeds.size()
 
         edge_embs, bmes_embs, nodes_mask, words_mask_f, words_mask_b, words_length = self.construct_graph(B, L, word_list)
-        _, N, _ = edge_embs.size()
 
         node_embeds = self.dropout(node_embeds)
-        edge_embs = self.dropout(edge_embs)
 
-        ## forward direction update
-        edges_f = self.edge_emb_linear(edge_embs)
+        _, N, _ = words_mask_f.size()
+
+        if self.use_edge:
+            edge_embs = self.dropout(edge_embs)
+
+        # forward direction digraph
         nodes_f, _ = self.emb_rnn_f(node_embeds)
         nodes_f_cat = nodes_f[:, None, :, :]
-        edges_f_cat = edges_f[:, None, :, :]
         _, _, H = nodes_f.size()
 
-        if self.use_global:
-            glo_f = edges_f.mean(1, keepdim=True) + nodes_f.mean(1, keepdim=True)
-            glo_f_cat = glo_f[:, None, :, :]
+        if self.use_edge:
+            edges_f = self.edge_emb_linear(edge_embs)
+            edges_f_cat = edges_f[:, None, :, :]
+
+            if self.use_global:
+                glo_f = edges_f.mean(1, keepdim=True) + nodes_f.mean(1, keepdim=True)
+                glo_f_cat = glo_f[:, None, :, :]
+
+        else:
+            if self.use_global:
+                glo_f = nodes_f.mean(1, keepdim=True)
+                glo_f_cat = glo_f[:, None, :, :]
 
         for i in range(self.iters):
 
-            if N > 1:
+            # Attention-based aggregation
+            if self.use_edge and N > 1:
                 bmes_nodes_f = torch.cat([nodes_f.unsqueeze(2).expand(B, L, N, H), bmes_embs.transpose(1, 2)], -1)
                 edges_att_f = self.node2edge_f[i](edges_f, bmes_nodes_f, nodes_mask.transpose(1, 2))
 
             nodes_begin_f = torch.sum(nodes_f[:, None, :, :] * (1 - words_mask_b)[:, :, :, None].float(), 2)
             nodes_begin_f = torch.cat([torch.zeros([B, 1, H], device=nodes_f.device), nodes_begin_f[:, 1:N, :]], 1)
-            nodes_att_f = self.edge2node_f[i](nodes_f, torch.cat([edges_f, nodes_begin_f, words_length], -1).unsqueeze(2), words_mask_f)
 
-            if self.use_global:
-                glo_att_f = torch.cat([self.glo_att_f_node[i](glo_f, nodes_f), self.glo_att_f_edge[i](glo_f, edges_f)], -1)
+            if self.use_edge:
+                nodes_att_f = self.edge2node_f[i](nodes_f, torch.cat([edges_f, nodes_begin_f, words_length], -1).unsqueeze(2), words_mask_f)
+                if self.use_global:
+                    glo_att_f = torch.cat([self.glo_att_f_node[i](glo_f, nodes_f), self.glo_att_f_edge[i](glo_f, edges_f)], -1)
+            else:
+                nodes_att_f = self.edge2node_f[i](nodes_f, torch.cat([nodes_begin_f, words_length], -1).unsqueeze(2), words_mask_f)
+                if self.use_global:
+                    glo_att_f = self.glo_att_f_node[i](glo_f, nodes_f)
 
-            if N > 1:
+            # RNN-based update
+            if self.use_edge and N > 1:
                 if self.use_global:
                     edges_f = torch.cat([edges_f[:, 0:1, :], self.edge_rnn_f(edges_f[:, 1:N, :],
                                          edges_att_f[:, 1:N, :], glo_att_f.expand(B, N-1, H*2))], 1)
@@ -254,7 +321,7 @@ class Graph(nn.Module):
             nodes_f_r = torch.cat([torch.zeros([B, 1, self.hidden_dim], device=nodes_f.device), nodes_f[:, 0:(L-1), :]], 1)
 
             if self.use_global:
-                nodes_f = self.node_rnn_f(nodes_f, nodes_f_r, nodes_att_f, glo_att_f.expand(B, L, H*2))
+                nodes_f = self.node_rnn_f(nodes_f, nodes_f_r, nodes_att_f, glo_att_f.expand(B, L, -1))
             else:
                 nodes_f = self.node_rnn_f(nodes_f, nodes_f_r, nodes_att_f)
 
@@ -268,32 +335,45 @@ class Graph(nn.Module):
 
         nodes_cat = nodes_f_cat
 
+        # backward direction digraph
         if self.bidirectional:
-            ## backward direction update
-            edges_b = self.edge_emb_linear(edge_embs)
             nodes_b, _ = self.emb_rnn_b(torch.flip(node_embeds, [1]))
             nodes_b = torch.flip(nodes_b, [1])
             nodes_b_cat = nodes_b[:, None, :, :]
-            edges_b_cat = edges_b[:, None, :, :]
 
-            if self.use_global:
-                glo_b = nodes_b.mean(1, keepdim=True) + edges_b.mean(1, keepdim=True)
-                glo_b_cat = glo_b[:, None, :, :]
+            if self.use_edge:
+                edges_b = self.edge_emb_linear(edge_embs)
+                edges_b_cat = edges_b[:, None, :, :]
+                if self.use_global:
+                    glo_b = nodes_b.mean(1, keepdim=True) + edges_b.mean(1, keepdim=True)
+                    glo_b_cat = glo_b[:, None, :, :]
+
+            else:
+                if self.use_global:
+                    glo_b = nodes_b.mean(1, keepdim=True)
+                    glo_b_cat = glo_b[:, None, :, :]
 
             for i in range(self.iters):
 
-                if N > 1:
+                # Attention-based aggregation
+                if self.use_edge and N > 1:
                     bmes_nodes_b = torch.cat([nodes_b.unsqueeze(2).expand(B, L, N, H), bmes_embs.transpose(1, 2)], -1)
                     edges_att_b = self.node2edge_b[i](edges_b, bmes_nodes_b, nodes_mask.transpose(1, 2))
 
                 nodes_begin_b = torch.sum(nodes_b[:, None, :, :] * (1 - words_mask_f)[:, :, :, None].float(), 2)
                 nodes_begin_b = torch.cat([torch.zeros([B, 1, H], device=nodes_b.device), nodes_begin_b[:, 1:N, :]], 1)
-                nodes_att_b = self.edge2node_b[i](nodes_b, torch.cat([edges_b, nodes_begin_b, words_length], -1).unsqueeze(2), words_mask_b)
 
-                if self.use_global:
-                    glo_att_b = torch.cat([self.glo_att_b_node[i](glo_b, nodes_b), self.glo_att_b_edge[i](glo_b, edges_b)], -1)
+                if self.use_edge:
+                    nodes_att_b = self.edge2node_b[i](nodes_b, torch.cat([edges_b, nodes_begin_b, words_length], -1).unsqueeze(2), words_mask_b)
+                    if self.use_global:
+                        glo_att_b = torch.cat([self.glo_att_b_node[i](glo_b, nodes_b), self.glo_att_b_edge[i](glo_b, edges_b)], -1)
+                else:
+                    nodes_att_b = self.edge2node_b[i](nodes_b, torch.cat([nodes_begin_b, words_length], -1).unsqueeze(2), words_mask_b)
+                    if self.use_global:
+                        glo_att_b = self.glo_att_b_node[i](glo_b, nodes_b)
 
-                if N > 1:
+                # RNN-based update
+                if self.use_edge and N > 1:
                     if self.use_global:
                         edges_b = torch.cat([edges_b[:, 0:1, :], self.edge_rnn_b(edges_b[:, 1:N, :],
                                              edges_att_b[:, 1:N, :], glo_att_b.expand(B, N-1, H*2))], 1)
@@ -306,7 +386,7 @@ class Graph(nn.Module):
                 nodes_b_r = torch.cat([nodes_b[:, 1:L, :], torch.zeros([B, 1, self.hidden_dim], device=nodes_b.device)], 1)
 
                 if self.use_global:
-                    nodes_b = self.node_rnn_b(nodes_b, nodes_b_r, nodes_att_b, glo_att_b.expand(B, L, H*2))
+                    nodes_b = self.node_rnn_b(nodes_b, nodes_b_r, nodes_att_b, glo_att_b.expand(B, L, -1))
                 else:
                     nodes_b = self.node_rnn_b(nodes_b, nodes_b_r, nodes_att_b)
 
@@ -330,7 +410,7 @@ class Graph(nn.Module):
 
     def forward(self, word_list, batch_inputs, mask, batch_label=None):
 
-        tags = self.get_tags(word_list, batch_inputs)
+        tags = self.update_graph(word_list, batch_inputs)
 
         if batch_label is not None:
             if self.use_crf:

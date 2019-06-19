@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Author: Jie
+# @Author: Jie Yang
 # @Last Modified by:   Yicheng Zou,     Contact: yczou18@fudan.edu.cn
 
-## input as sentence level labels
+
+# input as sentence level labels
 def get_ner_fmeasure(golden_lists, predict_lists):
     sent_num = len(golden_lists)
     golden_full = []
