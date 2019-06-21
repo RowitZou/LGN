@@ -222,8 +222,6 @@ class Graph(nn.Module):
                             words_mask_f = words_mask_f.cuda()
                             words_mask_b = words_mask_b.cuda()
 
-                        sen_nodes_mask = torch.cat([sen_nodes_mask, nodes_mask], 0)
-
                         words_mask_f[0, w + word_len - 1] = 0
                         sen_words_mask_f = torch.cat([sen_words_mask_f, words_mask_f], 0)
 
@@ -251,17 +249,19 @@ class Graph(nn.Module):
                                     bmes_embed[0, w + index, :] = bmes_emb_m
 
                             sen_bmes_embed = torch.cat([sen_bmes_embed, bmes_embed], 0)
+                            sen_nodes_mask = torch.cat([sen_nodes_mask, nodes_mask], 0)
 
-        batch_nodes_mask = sen_nodes_mask.unsqueeze(0)
         batch_words_mask_f = sen_words_mask_f.unsqueeze(0)
         batch_words_mask_b = sen_words_mask_b.unsqueeze(0)
         batch_words_length = sen_words_length.unsqueeze(0)
         if self.use_edge:
+            batch_nodes_mask = sen_nodes_mask.unsqueeze(0)
             batch_word_embed = sen_word_embed.unsqueeze(0)  # Only works when batch size is 1
             batch_bmes_embed = sen_bmes_embed.unsqueeze(0)
         else:
             batch_word_embed = None
             batch_bmes_embed = None
+            batch_nodes_mask = None
 
         return batch_word_embed, batch_bmes_embed, batch_nodes_mask, batch_words_mask_f, batch_words_mask_b, batch_words_length
 

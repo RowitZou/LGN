@@ -324,11 +324,11 @@ if __name__ == '__main__':
 
     parser.add_argument('--seed', help='Random seed', default=47, type=int)
     parser.add_argument('--batch_size', help='Batch size. For now it only works when batch size is 1.', default=1, type=int)
-    parser.add_argument('--num_epoch',default=2, type=int, help="Epoch number.")
-    parser.add_argument('--iters', default=3, type=int, help='The number of Graph iterations.')
+    parser.add_argument('--num_epoch',default=50, type=int, help="Epoch number.")
+    parser.add_argument('--iters', default=4, type=int, help='The number of Graph iterations.')
     parser.add_argument('--hidden_dim', default=50, type=int, help='Hidden state size.')
     parser.add_argument('--num_head', default=10, type=int, help='Number of transformer head.')
-    parser.add_argument('--head_dim', default=10, type=int, help='Head dimension of transformer.')
+    parser.add_argument('--head_dim', default=20, type=int, help='Head dimension of transformer.')
     parser.add_argument('--tf_drop_rate', default=0.1, type=float, help='Transformer dropout rate.')
     parser.add_argument('--emb_drop_rate', default=0.5, type=float, help='Embedding dropout rate.')
     parser.add_argument('--cell_drop_rate', default=0.2, type=float, help='Aggregation module dropout rate.')
@@ -337,8 +337,8 @@ if __name__ == '__main__':
     parser.add_argument('--label_alphabet_size', type=int, help='Label alphabet size.')
     parser.add_argument('--char_dim', type=int, help='Char embedding size.')
     parser.add_argument('--word_dim', type=int, help='Word embedding size.')
-    parser.add_argument('--lr', type=float, default=5e-04)
-    parser.add_argument('--weight_decay', type=float, default=1e-08)
+    parser.add_argument('--lr', type=float, default=5e-05)
+    parser.add_argument('--weight_decay', type=float, default=0)
 
     args = parser.parse_args()
 
