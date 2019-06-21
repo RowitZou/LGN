@@ -86,6 +86,11 @@ class Graph(nn.Module):
                 [GloAtt(self.hidden_dim, nhead=self.num_head, head_dim=self.head_dim, dropout=self.tf_dropout_rate)
                  for _ in range(self.iters)])
 
+            if self.use_edge:
+                self.glo_att_f_edge = nn.ModuleList(
+                    [GloAtt(self.hidden_dim, nhead=self.num_head, head_dim=self.head_dim, dropout=self.tf_dropout_rate)
+                     for _ in range(self.iters)])
+
             # Updating modules
             if self.use_edge:
                 self.glo_rnn_f = Global_Cell(self.hidden_dim * 3, self.hidden_dim, dropout=self.cell_dropout_rate)
@@ -127,6 +132,10 @@ class Graph(nn.Module):
                 self.glo_att_b_node = nn.ModuleList(
                     [GloAtt(self.hidden_dim, nhead=self.num_head, head_dim=self.head_dim, dropout=self.tf_dropout_rate)
                      for _ in range(self.iters)])
+                if self.use_edge:
+                    self.glo_att_b_edge = nn.ModuleList(
+                        [GloAtt(self.hidden_dim, nhead=self.num_head, head_dim=self.head_dim, dropout=self.tf_dropout_rate)
+                         for _ in range(self.iters)])
 
                 # Updating modules
                 if self.use_edge:
