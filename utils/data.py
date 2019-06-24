@@ -67,7 +67,7 @@ class Data:
                 char = pair[0]
                 if self.number_normalized:
                     # Mapping numbers to 0
-                    char = re.sub('[0-9]', '0', char)
+                    char = normalize_word(char)
                 label = pair[-1]
                 self.label_alphabet.add(label)
                 self.char_alphabet.add(char)
@@ -94,7 +94,7 @@ class Data:
                 if len(line) > 0:
                     word = line.split()[0]
                     if self.number_normalized:
-                        word = re.sub('[0-9]', '0', word)
+                        word = normalize_word(word)
                     word_list.append(word)
                 else:
                     for idx in range(len(word_list)):

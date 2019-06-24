@@ -6,6 +6,16 @@ import numpy as np
 import re
 
 
+def normalize_word(word):
+    new_word = ""
+    for char in word:
+        if char.isdigit():
+            new_word += '0'
+        else:
+            new_word += char
+    return new_word
+
+
 def read_instance_with_gaz(input_file, word_dict, char_alphabet, word_alphabet, label_alphabet, number_normalized, max_sent_length):
     instence_texts = []
     instence_Ids = []
@@ -22,7 +32,7 @@ def read_instance_with_gaz(input_file, word_dict, char_alphabet, word_alphabet, 
                 pairs = line.strip().split()
                 char = pairs[0]
                 if number_normalized:
-                    char = re.sub('[0-9]', '0', char)
+                    char = normalize_word(char)
                 label = pairs[-1]
                 chars.append(char)
                 labels.append(label)

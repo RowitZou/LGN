@@ -45,12 +45,12 @@ class Graph(nn.Module):
 
             # bmes embedding
             self.bmes_embedding = nn.Embedding(4, self.bmes_dim)
-
+            """
             self.edge_emb_linear = nn.Sequential(
                 nn.Linear(self.word_emb_dim, self.hidden_dim),
                 nn.ELU()
             )
-
+            """
         # lstm
         self.emb_rnn_f = nn.LSTM(self.char_emb_dim, self.hidden_dim, batch_first=True)
         self.emb_rnn_b = nn.LSTM(self.char_emb_dim, self.hidden_dim, batch_first=True)
@@ -285,7 +285,7 @@ class Graph(nn.Module):
         _, _, H = nodes_f.size()
 
         if self.use_edge:
-            edges_f = self.edge_emb_linear(edge_embs)
+            edges_f = edge_embs
             edges_f_cat = edges_f[:, None, :, :]
 
             if self.use_global:
@@ -351,7 +351,7 @@ class Graph(nn.Module):
             nodes_b_cat = nodes_b[:, None, :, :]
 
             if self.use_edge:
-                edges_b = self.edge_emb_linear(edge_embs)
+                edges_b = edge_embs
                 edges_b_cat = edges_b[:, None, :, :]
                 if self.use_global:
                     glo_b = nodes_b.mean(1, keepdim=True) + edges_b.mean(1, keepdim=True)
