@@ -61,10 +61,7 @@ class Alphabet:
             return self.instances[0]
 
     def size(self):
-        if self.label:
-            return len(self.instances)
-        else:
-            return len(self.instances) + 1
+        return len(self.instances) + 1
 
     def iteritems(self):
         return self.instance2index.items()

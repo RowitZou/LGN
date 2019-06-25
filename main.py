@@ -29,6 +29,14 @@ def str2bool(v):
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
+def lr_decay(optimizer, epoch, decay_rate, init_lr):
+    lr = init_lr * ((1-decay_rate)**epoch)
+    print( " Learning rate is setted as:", lr)
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+    return optimizer
+
+
 def data_initialization(data, word_file, train_file, dev_file, test_file):
 
     data.build_word_file(word_file)
@@ -175,6 +183,7 @@ def train(data, args, saved_model_path):
         epoch_start = time.time()
         temp_start = epoch_start
         print(("Epoch: %s/%s" %(idx, args.num_epoch)))
+        optimizer = lr_decay(optimizer, idx, args.lr_decay, args.lr)
         sample_loss = 0
         batch_loss = 0
         total_loss = 0
@@ -322,7 +331,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_global', type=str2bool, default=True, help='If use the global node.')
     parser.add_argument('--bidirectional', type=str2bool, default=True, help='If use bidirectional digraph.')
 
-    parser.add_argument('--seed', help='Random seed', default=47, type=int)
+    parser.add_argument('--seed', help='Random seed', default=1023, type=int)
     parser.add_argument('--batch_size', help='Batch size. For now it only works when batch size is 1.', default=1, type=int)
     parser.add_argument('--num_epoch',default=50, type=int, help="Epoch number.")
     parser.add_argument('--iters', default=4, type=int, help='The number of Graph iterations.')
@@ -338,6 +347,7 @@ if __name__ == '__main__':
     parser.add_argument('--char_dim', type=int, help='Char embedding size.')
     parser.add_argument('--word_dim', type=int, help='Word embedding size.')
     parser.add_argument('--lr', type=float, default=5e-05)
+    parser.add_argument('--lr_decay', type=float, default=0)
     parser.add_argument('--weight_decay', type=float, default=0)
 
     args = parser.parse_args()
