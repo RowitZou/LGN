@@ -66,7 +66,7 @@ def read_instance_with_gaz(input_file, word_dict, char_alphabet, word_alphabet, 
     return instence_texts, instence_Ids
 
 
-def build_pretrain_embedding(embedding_path, word_alphabet, embedd_dim=50, norm=True):
+def build_pretrain_embedding(embedding_path, word_alphabet, norm=True, embedd_dim=50):
 
     def norm2one(vec):
         root_sum_square = np.sqrt(np.sum(np.square(vec)))
