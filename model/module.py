@@ -4,6 +4,7 @@
 
 
 import torch
+import math
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
@@ -110,13 +111,19 @@ class Nodes_Cell(nn.Module):
         super(Nodes_Cell, self).__init__()
 
         self.use_global = use_global
-
+        self.hidden_size = hid_h
         self.Wix = nn.Linear(input_h, hid_h)
         self.Wi2 = nn.Linear(input_h, hid_h)
         self.Wf = nn.Linear(input_h, hid_h)
         self.Wcx = nn.Linear(input_h, hid_h)
 
         self.drop = nn.Dropout(dropout)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1.0 / math.sqrt(self.hidden_size)
+        for weight in self.parameters():
+            nn.init.uniform_(weight, -stdv, stdv)
 
     def forward(self, h, h2, x, glo=None):
 
@@ -144,12 +151,19 @@ class Edges_Cell(nn.Module):
         super(Edges_Cell, self).__init__()
 
         self.use_global = use_global
-
+        self.hidden_size = hid_h
         self.Wi = nn.Linear(input_h, hid_h)
         self.Wf = nn.Linear(input_h, hid_h)
         self.Wc = nn.Linear(input_h, hid_h)
 
         self.drop = nn.Dropout(dropout)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1.0 / math.sqrt(self.hidden_size)
+        for weight in self.parameters():
+            nn.init.uniform_(weight, -stdv, stdv)
 
     def forward(self, h, x, glo=None):
 
@@ -175,11 +189,19 @@ class Global_Cell(nn.Module):
     def __init__(self, input_h, hid_h, dropout=0.2):
         super(Global_Cell, self).__init__()
 
+        self.hidden_size = hid_h
         self.Wi = nn.Linear(input_h, hid_h)
         self.Wf = nn.Linear(input_h, hid_h)
         self.Wc = nn.Linear(input_h, hid_h)
 
         self.drop = nn.Dropout(dropout)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1.0 / math.sqrt(self.hidden_size)
+        for weight in self.parameters():
+            nn.init.uniform_(weight, -stdv, stdv)
 
     def forward(self, h, x):
 

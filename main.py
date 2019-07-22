@@ -33,7 +33,10 @@ def lr_decay(optimizer, epoch, decay_rate, init_lr):
     lr = init_lr * ((1-decay_rate)**epoch)
     print( " Learning rate is setted as:", lr)
     for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+        if param_group['name'] == 'aggr':
+            param_group['lr'] = lr * 2.
+        else:
+            param_group['lr'] = lr
     return optimizer
 
 
@@ -176,8 +179,26 @@ def train(data, args, saved_model_path):
     best_test_r = -1
 
     # Initialize the optimizer
-    parameters = filter(lambda p: p.requires_grad, model.parameters())
-    optimizer = optim.Adam(parameters, lr=args.lr, weight_decay=args.weight_decay)
+    aggr_module_params = []
+    other_module_params = []
+    for m_name in model._modules:
+        m = model._modules[m_name]
+        if isinstance(m, torch.nn.ModuleList):
+            for p in m.parameters():
+                if p.requires_grad:
+                    aggr_module_params.append(p)
+        else:
+            for p in m.parameters():
+                if p.requires_grad:
+                    other_module_params.append(p)
+
+    optimizer = optim.Adam([
+            {"params": (aggr_module_params), "name": "aggr"},
+            {"params": (other_module_params), "name": "other"}
+        ],
+        lr=args.lr,
+        weight_decay=args.weight_decay
+    )
 
     for idx in range(args.num_epoch):
         epoch_start = time.time()
@@ -316,13 +337,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--status', choices=['train', 'test', 'decode'], help='Function status.', default='train')
     parser.add_argument('--use_gpu', type=str2bool, default=True)
-    parser.add_argument('--train', help='Training set.', default='data/onto4ner.cn/train.char.bmes')
-    parser.add_argument('--dev', help='Developing set.', default='data/onto4ner.cn/dev.char.bmes')
-    parser.add_argument('--test', help='Testing set.', default='data/onto4ner.cn/test.char.bmes')
+    parser.add_argument('--train', help='Training set.', default='data/ontonote.cn/train.char.bmes')
+    parser.add_argument('--dev', help='Developing set.', default='data/ontonote.cn/dev.char.bmes')
+    parser.add_argument('--test', help='Testing set.', default='data/ontonote.cn/test.char.bmes')
     parser.add_argument('--raw', help='Raw file for decoding.')
     parser.add_argument('--output', help='Output results for decoding.')
-    parser.add_argument('--saved_set', help='Path of saved data set.', default='data/onto4ner.cn/saved.dset')
-    parser.add_argument('--saved_model', help='Path of saved model.', default="saved_model/model")
+    parser.add_argument('--saved_set', help='Path of saved data set.', default='data/ontonote.cn/saved.dset')
+    parser.add_argument('--saved_model', help='Path of saved model.', default="saved_model/model_ontonote")
     parser.add_argument('--char_emb', help='Path of character embedding file.', default="data/gigaword_chn.all.a2b.uni.ite50.vec")
     parser.add_argument('--word_emb', help='Path of word embedding file.', default="data/ctb.50d.vec")
 
@@ -333,7 +354,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--seed', help='Random seed', default=1023, type=int)
     parser.add_argument('--batch_size', help='Batch size. For now it only works when batch size is 1.', default=1, type=int)
-    parser.add_argument('--num_epoch',default=50, type=int, help="Epoch number.")
+    parser.add_argument('--num_epoch',default=100, type=int, help="Epoch number.")
     parser.add_argument('--iters', default=4, type=int, help='The number of Graph iterations.')
     parser.add_argument('--hidden_dim', default=50, type=int, help='Hidden state size.')
     parser.add_argument('--num_head', default=10, type=int, help='Number of transformer head.')
@@ -346,7 +367,7 @@ if __name__ == '__main__':
     parser.add_argument('--label_alphabet_size', type=int, help='Label alphabet size.')
     parser.add_argument('--char_dim', type=int, help='Char embedding size.')
     parser.add_argument('--word_dim', type=int, help='Word embedding size.')
-    parser.add_argument('--lr', type=float, default=5e-05)
+    parser.add_argument('--lr', type=float, default=2e-05)
     parser.add_argument('--lr_decay', type=float, default=0)
     parser.add_argument('--weight_decay', type=float, default=0)
 
