@@ -315,12 +315,11 @@ def load_model_decode(model_dir, data, args, name):
     model_dir = model_dir + "_best"
     print("Load Model from file: ", model_dir)
     model = Graph(data, args)
+    model.load_state_dict(torch.load(model_dir))
 
     # load model need consider if the model trained in GPU and load in CPU, or vice versa
-    if not args.use_gpu:
-        model.load_state_dict(torch.load(model_dir, map_location=lambda storage, loc: storage))
-    else:
-        model.load_state_dict(torch.load(model_dir))
+    if args.use_gpu:
+        model = model.cuda()
 
     print(("Decode %s data ..." % name))
     start_time = time.time()
@@ -337,12 +336,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--status', choices=['train', 'test', 'decode'], help='Function status.', default='train')
     parser.add_argument('--use_gpu', type=str2bool, default=True)
-    parser.add_argument('--train', help='Training set.', default='data/ontonote.cn/train.char.bmes')
-    parser.add_argument('--dev', help='Developing set.', default='data/ontonote.cn/dev.char.bmes')
-    parser.add_argument('--test', help='Testing set.', default='data/ontonote.cn/test.char.bmes')
+    parser.add_argument('--train', help='Training set.', default='data/onto4ner.cn/train.char.bmes')
+    parser.add_argument('--dev', help='Developing set.', default='data/onto4ner.cn/dev.char.bmes')
+    parser.add_argument('--test', help='Testing set.', default='data/onto4ner.cn/test.char.bmes')
     parser.add_argument('--raw', help='Raw file for decoding.')
     parser.add_argument('--output', help='Output results for decoding.')
-    parser.add_argument('--saved_set', help='Path of saved data set.', default='data/ontonote.cn/saved.dset')
+    parser.add_argument('--saved_set', help='Path of saved data set.', default='data/onto4ner.cn/saved.dset')
     parser.add_argument('--saved_model', help='Path of saved model.', default="saved_model/model_ontonote")
     parser.add_argument('--char_emb', help='Path of character embedding file.', default="data/gigaword_chn.all.a2b.uni.ite50.vec")
     parser.add_argument('--word_emb', help='Path of word embedding file.', default="data/ctb.50d.vec")
@@ -353,7 +352,7 @@ if __name__ == '__main__':
     parser.add_argument('--bidirectional', type=str2bool, default=True, help='If use bidirectional digraph.')
 
     parser.add_argument('--seed', help='Random seed', default=1023, type=int)
-    parser.add_argument('--batch_size', help='Batch size. For now it only works when batch size is 1.', default=1, type=int)
+    parser.add_argument('--batch_size', help='Batch size. ', default=1, type=int)
     parser.add_argument('--num_epoch',default=100, type=int, help="Epoch number.")
     parser.add_argument('--iters', default=4, type=int, help='The number of Graph iterations.')
     parser.add_argument('--hidden_dim', default=50, type=int, help='Hidden state size.')
@@ -379,6 +378,7 @@ if __name__ == '__main__':
     torch.manual_seed(seed_num)
     np.random.seed(seed_num)
 
+
     train_file = args.train
     dev_file = args.dev
     test_file = args.test
@@ -390,7 +390,6 @@ if __name__ == '__main__':
     word_file = args.word_emb
 
     if status == 'train':
-        assert not (train_file is None or dev_file is None or test_file is None)
         if os.path.exists(saved_set_path):
             print('Loading saved data set...')
             with open(saved_set_path, 'rb') as f:
