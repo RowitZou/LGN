@@ -3,7 +3,6 @@
 # @Last Modified by:   Yicheng Zou,     Contact: yczou18@fudan.edu.cn
 
 import numpy as np
-import re
 
 
 def normalize_word(word):

@@ -87,6 +87,29 @@ def recover_label(pred_variable, gold_variable, mask_variable, label_alphabet):
     return pred_label, gold_label
 
 
+def print_args(args):
+    print("CONFIG SUMMARY:")
+    print("     Batch size: %s" % (args.batch_size))
+    print("     If use GPU: %s" % (args.use_gpu))
+    print("     If use CRF: %s" % (args.use_crf))
+    print("     Epoch  number: %s" % (args.num_epoch))
+    print("     Learning rate: %s" % (args.lr))
+    print("     L2 normalization rate: %s" % (args.weight_decay))
+    print("     If use edge embedding: %s" % (args.use_edge))
+    print("     If  use  global  node: %s" % (args.use_global))
+    print("     Bidirectional digraph: %s" % (args.bidirectional))
+    print("     Update   step  number: %s" % (args.iters))
+    print("     Attention  dropout   rate: %s" % (args.tf_drop_rate))
+    print("     Embedding  dropout   rate: %s" % (args.emb_drop_rate))
+    print("     Hidden  state   dimension: %s" % (args.hidden_dim))
+    print("     Learning rate decay ratio: %s" % (args.lr_decay))
+    print("     Aggregation module dropout rate: %s" % (args.cell_drop_rate))
+    print("     Head    number   of   attention: %s" % (args.num_head))
+    print("     Head  dimension   of  attention: %s" % (args.head_dim))
+    print("CONFIG SUMMARY END.")
+    sys.stdout.flush()
+
+
 def evaluate(data, args, model, name):
     if name == "train":
         instances = data.train_Ids
@@ -342,7 +365,7 @@ if __name__ == '__main__':
     parser.add_argument('--raw', help='Raw file for decoding.')
     parser.add_argument('--output', help='Output results for decoding.')
     parser.add_argument('--saved_set', help='Path of saved data set.', default='data/onto4ner.cn/saved.dset')
-    parser.add_argument('--saved_model', help='Path of saved model.', default="saved_model/model_ontonote")
+    parser.add_argument('--saved_model', help='Path of saved model.', default="saved_model/model_onto4ner")
     parser.add_argument('--char_emb', help='Path of character embedding file.', default="data/gigaword_chn.all.a2b.uni.ite50.vec")
     parser.add_argument('--word_emb', help='Path of word embedding file.', default="data/ctb.50d.vec")
 
@@ -352,7 +375,7 @@ if __name__ == '__main__':
     parser.add_argument('--bidirectional', type=str2bool, default=True, help='If use bidirectional digraph.')
 
     parser.add_argument('--seed', help='Random seed', default=1023, type=int)
-    parser.add_argument('--batch_size', help='Batch size. ', default=1, type=int)
+    parser.add_argument('--batch_size', help='Batch size.', default=1, type=int)
     parser.add_argument('--num_epoch',default=100, type=int, help="Epoch number.")
     parser.add_argument('--iters', default=4, type=int, help='The number of Graph iterations.')
     parser.add_argument('--hidden_dim', default=50, type=int, help='Hidden state size.')
@@ -377,7 +400,6 @@ if __name__ == '__main__':
     random.seed(seed_num)
     torch.manual_seed(seed_num)
     np.random.seed(seed_num)
-
 
     train_file = args.train
     dev_file = args.dev
@@ -412,6 +434,7 @@ if __name__ == '__main__':
         args.label_alphabet_size = data.label_alphabet.size()
         args.char_dim = data.char_emb_dim
         args.word_dim = data.word_emb_dim
+        print_args(args)
         train(data, args, saved_model_path)
 
     elif status == 'test':
@@ -426,6 +449,8 @@ if __name__ == '__main__':
         data.generate_instance_with_words(test_file, 'test')
         with open(saved_model_path + "_best_HP.config", "rb") as f:
             args = pickle.load(f)
+        data.show_data_summary()
+        print_args(args)
         load_model_decode(saved_model_path, data, args, "test")
 
     elif status == 'decode':
@@ -440,6 +465,8 @@ if __name__ == '__main__':
         data.generate_instance_with_words(raw_file, 'raw')
         with open(saved_model_path + "_best_HP.config", "rb") as f:
             args = pickle.load(f)
+        data.show_data_summary()
+        print_args(args)
         decode_results = load_model_decode(saved_model_path, data, args, "raw")
         data.write_decoded_results(output_file, decode_results, 'raw')
     else:
