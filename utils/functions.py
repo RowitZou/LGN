@@ -27,15 +27,18 @@ def read_instance_with_gaz(input_file, word_dict, char_alphabet, word_alphabet, 
         label_Ids = []
 
         for line in f:
-            if len(line) > 2:
+            if len(line) > 1:
                 pairs = line.strip().split()
                 char = pairs[0]
                 if number_normalized:
                     char = normalize_word(char)
-                label = pairs[-1]
                 chars.append(char)
-                labels.append(label)
                 char_Ids.append(char_alphabet.get_index(char))
+                if len(pairs) > 1:
+                    label = pairs[-1]
+                else:
+                    label = 'O'
+                labels.append(label)
                 label_Ids.append(label_alphabet.get_index(label))
 
             # A sentence is finished.
