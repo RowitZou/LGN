@@ -47,11 +47,13 @@ BMES tag scheme, with each character its label for one line. Sentences are split
 		               --saved_model saved_model/model_onto4ner \
 		               --saved_set data/onto4ner.cn/saved.dset
 		               
-## Data Downloads
+## Data
 
 The pretrained character and word embeddings can be downloaded from [Lattice LSTM](https://github.com/jiesutd/LatticeLSTM).
 
-Datasets including OntoNotes, MSRA, Weibo and Resume are available at Google Drive or Baidu Pan.
+Original datasets can be found at [OntoNotes](https://catalog.ldc.upenn.edu/LDC2011T03), [MSRA](http://sighan.cs.uchicago.edu/bakeoff2006/), 
+[Weibo](https://github.com/hltcoe/golden-horse) and [Resume](https://github.com/jiesutd/LatticeLSTM/tree/master/ResumeNER).
+If you want preprocessed datasets that satisfy the input format of our codes, please contact me.
 
 ## Pretrained Model Downloads
 
@@ -59,7 +61,7 @@ We also provide pretrained models on the four datasets, which are the same model
 If you try to retrain models from scratch under the same hyper-parameter settings, you may obtain a sightly 
 lower or higher F1 score than that reported in the paper (in our experiments we selected the model that performed best).
 
-Pretrained models and related hyper-parameter settings are available at Google Drive or Baidu Pan.
+Pretrained models and related hyper-parameter settings are available at Google Drive or Baidu Pan (TBC).
 
 When running main.py in test mode for pretrained models, you can get the results as follows:
 
@@ -74,7 +76,7 @@ When running main.py in test mode for pretrained models, you can get the results
 | Resume dev     |   94.27   |  94.59  | 94.43 |
 | Resume test    |   95.28   |  95.46  | 95.37 |
 
-## Cite
+## Citation
 
 	@article{gui2019lexicon,  
 	 title={A Lexicon-Based Graph Neural Network for Chinese NER},  
