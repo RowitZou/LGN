@@ -61,7 +61,7 @@ We also provide pretrained models on the four datasets, which are the same model
 If you try to retrain models from scratch under the same hyper-parameter settings, you may obtain a sightly 
 lower or higher F1 score than that reported in the paper (in our experiments we selected the model that performed best).
 
-Pretrained models and related hyper-parameter settings are available at Google Drive or Baidu Pan (TBC).
+Pretrained models and related hyper-parameter settings are available at [Google Drive](https://drive.google.com/file/d/1KKkCW8WRhgR2P2UbRpNpKyE_RAv1EREv/view?usp=sharing) or [Baidu Pan](https://pan.baidu.com/s/1U89EwnhPpMa4bNrS--u4EA).
 
 When running main.py in test mode for pretrained models, you can get the results as follows:
 
