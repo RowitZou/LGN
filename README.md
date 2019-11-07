@@ -78,11 +78,12 @@ When running main.py in test mode for pretrained models, you can get the results
 
 ## Citation
 
-	@article{gui2019lexicon,  
-	 title={A Lexicon-Based Graph Neural Network for Chinese NER},  
-	 author={Gui, Tao and Zou, Yicheng and Zhang, Qi and Peng, Minlong and 
-	 Fu, Jinlan and Wei, Zhongyu and Huang, Xuanjing},  
-	 booktitle={2019 Conference on Empirical Methods in Natural Language Processing and 
-	 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP)},
-	 year={2019}  
+	@inproceedings{gui2019lexicon,
+  	 title={A Lexicon-Based Graph Neural Network for Chinese NER},
+  	 author={Gui, Tao and Zou, Yicheng and Zhang, Qi and Peng, Minlong and 
+	 Fu, Jinlan and Wei, Zhongyu and Huang, Xuanjing},
+  	 booktitle={Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing 
+	 and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP)},
+  	 pages={1039--1049},
+  	 year={2019}
 	}
