@@ -1,6 +1,6 @@
 # LGN
 
-Pytorch implementation of [A Lexicon-Based Graph Neural Network for Chinese NER](http://jkx.fudan.edu.cn/~qzhang/paper/emnlp-2019.ner.pdf).
+Pytorch implementation of [A Lexicon-Based Graph Neural Network for Chinese NER](https://www.aclweb.org/anthology/D19-1096.pdf).
 
 The code is partially referred to https://github.com/jiesutd/LatticeLSTM.
 
