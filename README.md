@@ -53,7 +53,8 @@ The pretrained character and word embeddings can be downloaded from [Lattice LST
 
 Original datasets can be found at [OntoNotes](https://catalog.ldc.upenn.edu/LDC2011T03), [MSRA](http://sighan.cs.uchicago.edu/bakeoff2006/), 
 [Weibo](https://github.com/hltcoe/golden-horse) and [Resume](https://github.com/jiesutd/LatticeLSTM/tree/master/ResumeNER).
-If you want preprocessed datasets that satisfy the input format of our codes, please contact me.
+The preprocessed datasets that satisfy the input format of our codes are available at [Google Drive](https://drive.google.com/open?id=1Rvju5_gp2E6BFiqzMBtnMqVP803AbBcm) and 
+[Baidu Pan](https://pan.baidu.com/s/1zbzLriRpc8S_5ez_upC7OA) (Code: akcm)
 
 ## Pretrained Model Downloads
 
